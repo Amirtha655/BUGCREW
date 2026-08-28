@@ -6,7 +6,8 @@ Project: **Autonomous AI Agents for Real-Time Financial Markets** — a hackatho
 prototype of a self-directing, risk-controlled, paper-trading system.
 Nothing here touches real money or a real broker.
 
-Last updated: 2026-08-28, end of the frontend redesign session.
+Last updated: 2026-08-28, end of the stabilisation session
+(previous entry: end of the frontend redesign session).
 
 ---
 
@@ -135,9 +136,21 @@ Verified in-browser this session, all 10 pages, no console errors, no layout ove
    history). A page refresh fixes it. Only affects development.
 5. **`useLiveFeed` history is memory-only** — capped at 120 cycles, lost on
    refresh. The portfolio chart therefore only covers the current session.
-6. **No tests.** Everything was verified manually via API probes and the browser.
+6. ~~**No tests.**~~ Fixed -- `backend/tests/` now covers `risk_guardian.py`
+   and `adaptation_engine.py` (34 tests). Nothing else is covered yet; the
+   agents, engine, allocator and executor are still manual-verification only.
 7. **`decisions` are fetched with `limit=200`** — a very long run will truncate
    older rows in the UI. No pagination.
+8. **A cycle takes ~8.6s wall-clock with Groq enabled**, because each of the 6
+   assets gets its own sequential LLM call. That is longer than the default 4s
+   cycle interval, so `cycle_interval_seconds` (the Speed control) does not
+   really set the cadence — LLM latency does. The calls are independent and
+   only rewrite prose, so making them concurrent would cut a cycle to ~1.5s
+   without touching any decision logic. Not done yet.
+9. **`backend/.venv` in the inherited copy was built on another machine** (it
+   pointed at a Python install under another user's home directory) and could
+   not run at all. It has been rebuilt; the dead one is parked at
+   `backend/.venv-broken-amirtha/` and is safe to delete.
 
 ---
 
@@ -162,6 +175,19 @@ Verified in-browser this session, all 10 pages, no console errors, no layout ove
   `reasoning_effort: "low"` (~1s per call).
 
 ---
+
+- **The autonomous loop blocked the whole server.** `run_cycle()` is
+  synchronous and makes one blocking Groq call per asset (~8.6s total), but it
+  was called directly inside the async loop and inside `/control/step` — so for
+  the entire duration of every cycle the process served no REST responses and
+  pushed no WebSocket frames. It now runs on a worker thread via
+  `asyncio.to_thread`, guarded by `app.state.cycle_lock`. Measured after the
+  fix: REST latency during a running cycle is ~10-15ms.
+  **Anything that calls `run_cycle()` must take that lock.**
+- **`/control/reset` and `/scenarios/{name}/load` could swap state mid-cycle.**
+  They set `running = False` but never waited for an in-flight cycle, so they
+  could wipe the database underneath one. Both now take the cycle lock, which
+  makes the pause real.
 
 ## 6. Important decisions
 
@@ -208,6 +234,12 @@ Type-check with:
 npx tsc --noEmit -p tsconfig.app.json
 ```
 
+**Tests** (from `/backend`):
+```bash
+.venv/Scripts/pip install -r requirements-dev.txt
+.venv/Scripts/python -m pytest
+```
+
 ### Demo route for a judge
 1. **Settings** → "Safety Limit Reached" → Start.
    → **Risk Controls** shows the AI asking for more and being cut down, then refused.
@@ -240,20 +272,43 @@ Frontend: `VITE_API_BASE` (optional, defaults to `http://localhost:8010`).
 
 ## 9. Where the last session ended
 
-The frontend redesign is complete and verified. Nothing was left half-written.
+A stabilisation session, picking up from the completed frontend redesign.
+Nothing is half-written. What changed:
+
+1. **The project is now a git repository.** It had none. The first commit is
+   the inherited code, untouched, so everything after it reads as a diff.
+2. **Rebuilt `backend/.venv`** — the inherited one pointed at a Python install
+   belonging to another user and could not start the backend at all.
+3. **Fixed the event-loop blocking** described in section 5.
+4. **Added 34 tests** for the Risk Guardian and the Adaptation Engine, plus
+   `requirements-dev.txt` and `pytest.ini` to run them.
+5. **Brought `README.md` up to date** — it still described the old single-page
+   UI and claimed three scenarios when there are seven.
+
+Verified after the changes: 34 tests pass, frontend type-checks clean, the
+backend runs a full cycle end to end with Groq live, and the server stays
+responsive (~10-15ms) throughout a cycle.
 
 ## 10. Suggested next steps
 
-1. **Rotate the Groq API key** (see security note above).
-2. **Persist cycle history** so the portfolio chart survives a refresh — add a
+1. **Rotate the Groq API key** (see security note above). Still outstanding —
+   it has to be done by hand at console.groq.com, and the key has now been
+   copied between machines.
+2. **Make the per-asset LLM calls concurrent** (issue 8 above). Biggest
+   remaining win for how the demo feels: ~8.6s per cycle down to ~1.5s, with no
+   change to any decision logic.
+3. **Persist cycle history** so the portfolio chart survives a refresh — add a
    `GET /api/history` returning portfolio value per cycle and seed the chart
    from it, instead of relying on in-memory WebSocket history.
-3. **Add tests** — the highest-value targets are `risk_guardian.py` (the safety
-   claim) and `adaptation_engine.py` (the autonomy claim). Both are pure
-   functions and easy to test.
-4. **Make `max_single_trade` reachable** if you want that specific MODIFY story:
+4. **Widen test coverage** to the engine and the allocator. The two hardest
+   claims are covered; the wiring between them is not.
+5. **Make `max_single_trade` reachable** if you want that specific MODIFY story:
    either raise `base_pct`, or lower the limit. Requires a deliberate decision
    about agent scoring.
-5. **Paginate `/api/decisions`** before any long-running demo.
-6. **Consider a Markets detail route** (`/markets/:asset`) — currently detail is
+6. **Paginate `/api/decisions`** before any long-running demo.
+7. **Consider a Markets detail route** (`/markets/:asset`) — currently detail is
    an inline expansion, which is fine but not deep-linkable.
+8. **Delete `backend/.venv-broken-amirtha/`** once the rebuilt venv has proven
+   itself.
+9. Minor: `main.py` still uses the deprecated `@app.on_event` startup hooks;
+   FastAPI wants a `lifespan` handler now. Harmless today.

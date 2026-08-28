@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -26,6 +28,10 @@ def on_startup():
     app.state.running = False
     app.state.loop_task = None
     app.state.ws_manager = ConnectionManager()
+    # Serialises cycles: the background loop and a manual /control/step can
+    # never run one at the same time, and reset/scenario-load wait for any
+    # in-flight cycle before swapping state.
+    app.state.cycle_lock = asyncio.Lock()
 
 
 @app.on_event("shutdown")

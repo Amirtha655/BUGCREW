@@ -24,8 +24,9 @@ performance -> Adapt -> Observe again.**
 - **Strategy Memory** + a real **Adaptation Engine** track win/loss history per
   (strategy, regime) and measurably shrink confidence/position size/risk
   limits after a run of losses — then restore them as performance recovers.
-- Three replayable demo scenarios: a normal market, a sudden shock (regime
-  flips to CRISIS), and repeated losses that trigger visible adaptation.
+- Seven replayable demo scenarios, including a normal market, a sudden shock
+  (regime flips to CRISIS), repeated losses that trigger visible adaptation,
+  a liquidity drop, and a concentration limit being hit.
 
 The AI layer (`backend/ai/`) never invents the action/confidence/allocation —
 those numbers come from deterministic scoring. An LLM (Groq, free tier), if
@@ -70,16 +71,47 @@ npm run dev
 
 Open the printed local URL (default `http://localhost:5173`).
 
-### 3. Using the dashboard
+### 3. Tests
 
-1. Pick one of the three scenario buttons at the top (this resets the
-   portfolio and loads a scripted sequence of events).
-2. Click **Start Loop** to let it run continuously, or **Step Cycle** to
-   advance one cycle at a time for a controlled walkthrough.
-3. Click any row in **Agent Activity** to see the full WHAT / WHY / RISK /
-   WHAT CHANGED / WHY APPROVED explanation for that decision.
+The Risk Guardian and the Adaptation Engine -- the safety claim and the
+autonomy claim -- are covered by unit tests:
+
+```bash
+cd backend
+.venv/Scripts/pip install -r requirements-dev.txt
+.venv/Scripts/python -m pytest
+```
+
+Type-check the frontend with `npx tsc --noEmit -p tsconfig.app.json`.
+
+### 4. Using the dashboard
+
+The UI is a ten-page operations console. The sidebar covers **Overview,
+Markets, Agents, Portfolio, Risk Controls, Decisions, Execution, Adaptation,
+Activity** and **Settings**; the simulation controls (Start / Pause / Step /
+Reset / Speed / Emergency Stop) sit in the top bar on every page.
+
+1. Go to **Settings** and pick a scenario. Loading one resets the portfolio
+   and loads a scripted sequence of events.
+2. **Start** runs the loop continuously; **Step** advances exactly one cycle
+   for a controlled walkthrough.
+3. **Decisions** shows the full pipeline for any single decision -- what the
+   agent proposed, what the Risk Guardian did to it, what was allocated, and
+   what was executed.
 4. **Emergency Stop** immediately blocks all new positions system-wide
    (existing positions can still be exited).
+
+A good walkthrough:
+
+- **Settings -> "Safety Limit Reached" -> Start.** Risk Controls shows a
+  proposal being cut down, then refused outright.
+- **Settings -> "Strategy Underperformance" -> Start**, wait ~40s. Adaptation
+  shows the before/after settings and why they changed.
+- **Settings -> "Sudden Price Shock" -> Start.** Overview flips to Crisis and
+  the agents stand down.
+
+Note that each cycle makes one LLM call per asset, so with a Groq key
+configured a cycle takes several seconds regardless of the speed setting.
 
 ## Environment variables (backend/.env)
 

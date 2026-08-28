@@ -65,9 +65,11 @@ def stop(request: Request):
 
 @router.post("/control/step")
 async def step(request: Request):
-    loop: AutonomousLoop = request.app.state.loop
-    result = loop.run_cycle()
-    await request.app.state.ws_manager.broadcast(result)
+    app = request.app
+    async with app.state.cycle_lock:
+        loop: AutonomousLoop = app.state.loop
+        result = await asyncio.to_thread(loop.run_cycle)
+    await app.state.ws_manager.broadcast(result)
     return result
 
 
@@ -86,17 +88,21 @@ def set_speed(body: SpeedBody):
 
 
 @router.post("/control/reset")
-def reset(request: Request):
+async def reset(request: Request):
     """Wipes portfolio, trades, memory and adaptation back to a clean start,
-    keeping whichever scenario is currently loaded."""
+    keeping whichever scenario is currently loaded.
+
+    Takes the cycle lock so state is never swapped out from under a cycle
+    that is still running on the worker thread."""
     app = request.app
     app.state.running = False
-    current = app.state.loop.active_scenario
-    reset_all()
-    new_loop = AutonomousLoop()
-    if current:
-        new_loop.load_scenario(current)
-    app.state.loop = new_loop
+    async with app.state.cycle_lock:
+        current = app.state.loop.active_scenario
+        reset_all()
+        new_loop = AutonomousLoop()
+        if current:
+            new_loop.load_scenario(current)
+        app.state.loop = new_loop
     return {"reset": True, "active_scenario": current["name"] if current else None}
 
 
@@ -109,7 +115,7 @@ def scenarios():
 
 
 @router.post("/scenarios/{name}/load")
-def load_scenario(name: str, request: Request, body: ScenarioLoadBody = ScenarioLoadBody()):
+async def load_scenario(name: str, request: Request, body: ScenarioLoadBody = ScenarioLoadBody()):
     scenario = get_scenario(name)
     if scenario is None:
         raise HTTPException(404, f"Unknown scenario '{name}'")
@@ -117,12 +123,15 @@ def load_scenario(name: str, request: Request, body: ScenarioLoadBody = Scenario
     app = request.app
     app.state.running = False  # pause the loop while we swap state under it
 
-    if body.reset:
-        reset_all()
+    # The lock makes the pause real: an in-flight cycle finishes before we
+    # wipe the database and replace the loop object.
+    async with app.state.cycle_lock:
+        if body.reset:
+            reset_all()
 
-    new_loop = AutonomousLoop()
-    new_loop.load_scenario(scenario)
-    app.state.loop = new_loop
+        new_loop = AutonomousLoop()
+        new_loop.load_scenario(scenario)
+        app.state.loop = new_loop
     return {"loaded": name, "reset": body.reset}
 
 
@@ -208,8 +217,17 @@ def adaptation_events(limit: int = 20):
 
 
 async def _run_loop(app):
+    """Drives the autonomous loop.
+
+    run_cycle() is synchronous and makes one blocking LLM call per asset, so
+    running it directly here would stall the event loop for seconds at a time
+    -- no REST responses, no WebSocket frames, for the whole cycle. It runs on
+    a worker thread instead; the lock keeps it the only cycle in flight."""
     while app.state.running:
-        loop: AutonomousLoop = app.state.loop
-        result = loop.run_cycle()
+        async with app.state.cycle_lock:
+            if not app.state.running:  # stopped while we waited for the lock
+                break
+            loop: AutonomousLoop = app.state.loop
+            result = await asyncio.to_thread(loop.run_cycle)
         await app.state.ws_manager.broadcast(result)
         await asyncio.sleep(settings.cycle_interval_seconds)
