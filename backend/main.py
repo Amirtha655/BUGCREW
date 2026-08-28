@@ -9,7 +9,7 @@ from engine import AutonomousLoop
 from api.websocket import ConnectionManager
 from api.routes import router as api_router
 
-app = FastAPI(title="Autonomous Financial Agents")
+app = FastAPI(title="AutoChain — Autonomous Multi-Agent Market System")
 
 app.add_middleware(
     CORSMiddleware,

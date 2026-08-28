@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🧠 Autonomous AI Agents for Real-Time Financial Markets
+# 🧠 AutoChain
+
+### Autonomous Multi-Agent Market System
 
 **A self-directing, risk-controlled, multi-agent trading system.**
 It observes markets, reasons about them, decides, acts, checks whether it was right — and changes its own behaviour when it wasn't.

@@ -62,10 +62,10 @@ export default function App() {
   return (
     <div className="shell">
       <div className="brand">
-        <div className="mark">AF</div>
+        <div className="mark">AC</div>
         <div className="name">
-          Meridian
-          <span>Autonomous Desk</span>
+          AutoChain
+          <span>Multi-Agent Market System</span>
         </div>
       </div>
 
