@@ -2,12 +2,12 @@
 
 Context for whoever picks this project up next.
 
-Project: **Autonomous AI Agents for Real-Time Financial Markets** — a hackathon
+Project: **AutoChain — Autonomous Multi-Agent Market System** — a hackathon
 prototype of a self-directing, risk-controlled, paper-trading system.
 Nothing here touches real money or a real broker.
 
-Last updated: 2026-08-28, end of the stabilisation session
-(previous entry: end of the frontend redesign session).
+Last updated: 2026-08-28, end of the branding + pitch-prep session
+(earlier entries: stabilisation session, frontend redesign session).
 
 ---
 
@@ -279,13 +279,51 @@ npx tsc --noEmit -p tsconfig.app.json
 
 Frontend: `VITE_API_BASE` (optional, defaults to `http://localhost:8010`).
 
-> Security note: the Groq key was shared in plaintext chat during development.
-> It is in `.env`, which is gitignored, but **rotate it before making this repo
-> public.**
+> Security note: the Groq key was rotated on 2026-08-28 and the old one
+> revoked. `.env` is gitignored and the key has never been committed
+> (verified against the full history). Note that this project lives inside a
+> OneDrive-synced folder, so `.env` is synced to Microsoft's cloud even
+> though git ignores it — moving the project outside OneDrive is the fix if
+> that matters.
 
 ---
 
 ## 9. Where the last session ended
+
+### Session 3 — branding and pitch prep (most recent)
+
+1. **The project is now named AutoChain.** Branding was previously
+   inconsistent across three surfaces: the sidebar said "Meridian /
+   Autonomous Desk" (a placeholder matching nothing), the browser tab said
+   "frontend", and the API docs said "Autonomous Financial Agents". All now
+   read **AutoChain - Autonomous Multi-Agent Market System**. The name lives
+   in `frontend/index.html`, `frontend/src/App.tsx` (the `.brand` block),
+   `backend/main.py`, `frontend/package.json` and `README.md` — change all
+   five together if it is ever renamed again.
+2. **Restyled to a dark lime theme.** Near-black background, `#a3e635`
+   accent, dark is now the default rather than an option. The change is
+   confined to the token block at the top of `frontend/src/index.css`, so
+   every page and the Recharts graphs inherit it. Two traps worth knowing:
+   lime is unreadable as text on white (the light theme substitutes a
+   darkened green), and filled accent surfaces need the `--on-accent` token
+   rather than hardcoded white. Contrast was measured in-browser: body text
+   16.2:1, primary buttons 13.0:1 — all past WCAG AA.
+3. **Added a focus mode to the Agents page.** Six assets updating at once was
+   hard to follow while narrating a demo. Picking an agent narrows the whole
+   page to it; picking an asset within that narrows again. Focused assets get
+   the full reasoning, factors and Guardian verdict, which there was no room
+   for before.
+4. **Rewrote `README.md` as a pitch document** rather than setup notes —
+   problem statement, the three differentiating claims, a scenario table with
+   a suggested demo route, a prototype-vs-production comparison, security
+   posture and a three-horizon roadmap.
+5. **The Groq API key was rotated** and the new one verified working. The old
+   key is revoked.
+
+**Still not done, and the highest-value remaining item:** reducing LLM token
+spend (see section 10, item 1).
+
+### Session 2 — stabilisation
 
 A stabilisation session, picking up from the completed frontend redesign.
 Nothing is half-written. What changed:
@@ -306,28 +344,25 @@ responsive (~10-15ms) throughout a cycle.
 
 ## 10. Suggested next steps
 
-1. **Rotate the Groq API key** (see security note above). Still outstanding —
-   it has to be done by hand at console.groq.com, and the key has now been
-   copied between machines.
-2. **Reduce LLM token spend so explanations survive a continuous run**
+1. **Reduce LLM token spend so explanations survive a continuous run**
    (issue 9 above). The cheapest big win: most cycles are six HOLD/WAIT
    decisions that nobody reads the prose for. Enriching only *actionable*
    proposals — or only the one decision the UI is focused on — would cut token
    use several-fold and keep LLM-written text exactly where it is looked at.
    This changes what the AI layer is asked to do, so it is a deliberate call,
-   not a tidy-up.
-3. **Persist cycle history** so the portfolio chart survives a refresh — add a
+   not a tidy-up. **This is the top remaining item** — "the AI wrote this
+   explanation" is a claim made on stage, and a fast-running loop quietly
+   stops making it true.
+2. **Persist cycle history** so the portfolio chart survives a refresh — add a
    `GET /api/history` returning portfolio value per cycle and seed the chart
    from it, instead of relying on in-memory WebSocket history.
-4. **Widen test coverage** to the engine and the allocator. The two hardest
+3. **Widen test coverage** to the engine and the allocator. The two hardest
    claims are covered; the wiring between them is not.
-5. **Make `max_single_trade` reachable** if you want that specific MODIFY story:
+4. **Make `max_single_trade` reachable** if you want that specific MODIFY story:
    either raise `base_pct`, or lower the limit. Requires a deliberate decision
    about agent scoring.
-6. **Paginate `/api/decisions`** before any long-running demo.
-7. **Consider a Markets detail route** (`/markets/:asset`) — currently detail is
+5. **Paginate `/api/decisions`** before any long-running demo.
+6. **Consider a Markets detail route** (`/markets/:asset`) — currently detail is
    an inline expansion, which is fine but not deep-linkable.
-8. **Delete `backend/.venv-broken-amirtha/`** once the rebuilt venv has proven
-   itself.
-9. Minor: `main.py` still uses the deprecated `@app.on_event` startup hooks;
+7. Minor: `main.py` still uses the deprecated `@app.on_event` startup hooks;
    FastAPI wants a `lifespan` handler now. Harmless today.
