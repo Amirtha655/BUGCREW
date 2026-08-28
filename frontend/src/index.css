@@ -1,25 +1,66 @@
 /* ==========================================================================
    Design system.
-   Restrained, neutral, information-dense. Colour is reserved for meaning
-   (green = gain/approved, red = loss/blocked, amber = caution, blue = system
-   info). No gradients, no glow, no decorative styling.
+   Dark-first, near-black with a lime accent. Information-dense, but with
+   colour reserved for meaning (lime = gain/approved, red = loss/blocked,
+   amber = caution, blue = system info). No gradients, no glow.
    ========================================================================== */
 
 :root {
-  /* Light theme (default) */
-  --bg: #f4f5f7;
+  /* Dark theme (default) */
+  --bg: #0a0c08;
+  --surface: #12150f;
+  --surface-2: #171b13;
+  --surface-3: #1f241a;
+  --border: #262c1e;
+  --border-strong: #3a422e;
+
+  --text: #eef2e8;
+  --text-muted: #a1ab94;
+  --text-faint: #6e7862;
+
+  --green: #a3e635;
+  --green-bg: #1a2410;
+  --red: #ff7a6b;
+  --red-bg: #2c1614;
+  --amber: #ffc94d;
+  --amber-bg: #2b2210;
+  --blue: #7cc4ff;
+  --blue-bg: #101f2b;
+  --violet: #b49bff;
+  --violet-bg: #1c1730;
+
+  --accent: #a3e635;
+  /* Text that sits on top of a filled --accent surface. */
+  --on-accent: #0a0c08;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --radius: 6px;
+  --radius-lg: 10px;
+
+  --sidebar-w: 194px;
+  --topbar-h: 46px;
+
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f6f2;
   --surface: #ffffff;
-  --surface-2: #fafbfc;
-  --surface-3: #f0f2f5;
-  --border: #dde1e6;
-  --border-strong: #c6ccd4;
+  --surface-2: #fafbf8;
+  --surface-3: #eef1ea;
+  --border: #dfe3d9;
+  --border-strong: #c6ccbc;
 
-  --text: #191d23;
-  --text-muted: #59616d;
-  --text-faint: #838d99;
+  --text: #16190f;
+  --text-muted: #575e4c;
+  --text-faint: #828a76;
 
-  --green: #17784a;
-  --green-bg: #e6f4ec;
+  /* Lime is unreadable as text on white, so the light theme darkens it for
+     foreground use while filled surfaces keep the bright brand colour. */
+  --green: #4d7c0f;
+  --green-bg: #edf7dc;
   --red: #b4302b;
   --red-bg: #fbeaea;
   --amber: #97640a;
@@ -29,46 +70,10 @@
   --violet: #5b4b9c;
   --violet-bg: #eeebf8;
 
-  --accent: #24578c;
-
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-
-  --radius: 4px;
-  --radius-lg: 6px;
-
-  --sidebar-w: 194px;
-  --topbar-h: 46px;
+  --accent: #4d7c0f;
+  --on-accent: #ffffff;
 
   color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  --bg: #0f1216;
-  --surface: #161a1f;
-  --surface-2: #1a1f25;
-  --surface-3: #212832;
-  --border: #272e37;
-  --border-strong: #39424e;
-
-  --text: #e3e7ec;
-  --text-muted: #97a1ae;
-  --text-faint: #6a7480;
-
-  --green: #4aad7a;
-  --green-bg: #14291f;
-  --red: #d4635d;
-  --red-bg: #2c1917;
-  --amber: #cf9a3a;
-  --amber-bg: #2b2213;
-  --blue: #6098d0;
-  --blue-bg: #14212f;
-  --violet: #9285d0;
-  --violet-bg: #1e1a2e;
-
-  --accent: #6098d0;
-
-  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -190,7 +195,7 @@ button:hover:not(:disabled) { background: var(--surface-3); }
 button:active:not(:disabled) { background: var(--border); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 button.primary:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
 
 button.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--border)); }
