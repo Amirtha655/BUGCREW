@@ -204,6 +204,24 @@ Verified in-browser this session, all 10 pages, no console errors, no layout ove
   could wipe the database underneath one. Both now take the cycle lock, which
   makes the pause real.
 
+- **Positions halved into dust and never closed.** `REDUCE_EXPOSURE` sells
+  half of what is held with no floor, so a holding decayed
+  0.070 -> 0.035 -> 0.018 -> ... -> 0.000 forever, each step a real executed
+  trade. Two symptoms from one cause: the trade log filled with 0.000-unit
+  "Reduce" rows that moved no money, and the leftover stub still counted as
+  an open position, so the Risk page listed an asset at "0 - 0.0% of 25%".
+  A reduction that would leave less than `MIN_POSITION_VALUE` (100) now
+  closes the position outright, and `portfolio_manager` snaps a residual
+  quantity under 1e-9 to zero. Covered by `tests/test_paper_executor.py`.
+- **The scenario picker was permanently empty after any backend outage.**
+  The list was fetched once on mount with the error swallowed, so a failed
+  first attempt was never retried -- and because the WebSocket reconnects on
+  its own, live data resumed while the picker stayed empty, making the build
+  look like it simply had no scenarios. The status poll now doubles as
+  recovery, and an unreachable API raises a banner instead of failing
+  silently. **Any new REST data loaded once on mount needs the same
+  treatment.**
+
 ## 6. Important decisions
 
 - **The LLM explains, it never decides.** Keeps every money decision
