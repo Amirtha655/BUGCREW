@@ -90,7 +90,11 @@ class PortfolioManager:
                     - execution.transaction_cost
                 )
                 state.realized_pnl += realized
-                pos.quantity = max(0.0, pos.quantity - execution.execution_quantity)
+                remaining = max(0.0, pos.quantity - execution.execution_quantity)
+                # Floating-point residue would otherwise leave a position of
+                # ~1e-15 units, which still counts as open and shows in the
+                # portfolio as an asset worth 0.
+                pos.quantity = 0.0 if remaining < 1e-9 else remaining
 
         db.commit()
         return realized

@@ -33,7 +33,7 @@ export default function Execution() {
       render: (r) => <span className="num muted">{(r.slippage_pct * 100).toFixed(3)}%</span> },
     { key: "fee", header: <InfoLabel term={T.transactionCost} />, align: "right", sortable: true, sortValue: (r) => r.transaction_cost,
       render: (r) => <span className="num muted">{fmtCurrency(r.transaction_cost, 2)}</span> },
-    { key: "status", header: "Status",
+    { key: "result", header: "Result",
       render: (r) =>
         r.outcome_status === "EVALUATED" ? (
           <span className={`num ${pnlTone(r.pnl)}`}>{r.pnl >= 0 ? "+" : ""}{fmtCurrency(r.pnl, 2)}</span>

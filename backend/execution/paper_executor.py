@@ -12,6 +12,14 @@ from decision.decision_schema import DecisionProposal, MarketEvent, ActionType, 
 TRANSACTION_COST_RATE = 0.0015  # 0.15% simulated brokerage/spread cost
 NO_OP_ACTIONS = {ActionType.HOLD, ActionType.WAIT, ActionType.STOP_NEW_POSITIONS}
 
+# A holding worth less than this is a leftover, not a position. REDUCE_EXPOSURE
+# sells half of what is held, so without a floor a position halves forever --
+# 0.070 -> 0.035 -> 0.018 -> ... -> 0.000 -- never closing, filling the trade
+# log with meaningless zero-unit trades and leaving stubs that still show up
+# in the portfolio as an asset worth 0. Reductions that would leave less than
+# this close the position instead.
+MIN_POSITION_VALUE = 100.0
+
 
 class PaperExecutionEngine:
     def __init__(self, seed: int = 7):
@@ -38,8 +46,20 @@ class PaperExecutionEngine:
             quantity = round(allocation / execution_price, 4)
             transaction_cost = round(allocation * TRANSACTION_COST_RATE, 2)
         else:
+            if current_quantity <= 0:
+                return ExecutionResult(False, 0.0, 0.0, 0.0, 0.0, note="No position to sell")
+
             sell_fraction = 1.0 if proposal.action == ActionType.SELL else 0.5
             quantity = round(current_quantity * sell_fraction, 4)
+
+            # Close the position outright rather than leaving an untradeable
+            # stub behind -- either because the whole holding is already
+            # negligible, or because taking half would make the remainder so.
+            held_value = current_quantity * execution_price
+            remaining_value = (current_quantity - quantity) * execution_price
+            if held_value < MIN_POSITION_VALUE or remaining_value < MIN_POSITION_VALUE:
+                quantity = round(current_quantity, 4)
+
             if quantity <= 0:
                 return ExecutionResult(False, 0.0, 0.0, 0.0, 0.0, note="No position to sell")
             proceeds = quantity * execution_price
