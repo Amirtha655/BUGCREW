@@ -50,10 +50,6 @@ export default function Settings() {
                 {usingLLM ? "Groq language model" : "Built-in templates"}
               </span>
             </div>
-            <div className="kv">
-              <span className="k">Configured provider</span>
-              <span className="v mono">{status?.ai_provider ?? "—"}</span>
-            </div>
             <p style={{ margin: "11px 0 0", fontSize: 12, lineHeight: 1.55, color: "var(--text-muted)" }}>
               The language model never chooses the action, the confidence or the amount of money.
               Those are computed by deterministic code so every decision is reproducible and can be

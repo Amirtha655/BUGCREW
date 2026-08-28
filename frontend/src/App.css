@@ -145,6 +145,23 @@
 }
 .sim-banner b { font-weight: 700; letter-spacing: 0.03em; }
 
+/* ---------- backend unreachable ---------- */
+.offline-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 13px;
+  margin-bottom: 14px;
+  background: var(--red-bg);
+  border: 1px solid color-mix(in srgb, var(--red) 32%, transparent);
+  border-radius: var(--radius-lg);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.offline-banner .dot { margin-top: 5px; }
+.offline-banner b { color: var(--red); }
+
 /* ---------- pipeline ---------- */
 .pipeline { list-style: none; margin: 0; padding: 0; }
 .pipeline li {

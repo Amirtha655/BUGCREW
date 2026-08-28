@@ -47,7 +47,7 @@ function useTheme() {
 }
 
 export default function App() {
-  const { latest, status, connected } = useSystem();
+  const { latest, status, connected, backendUp } = useSystem();
   const { theme, setTheme } = useTheme();
 
   const portfolio = latest?.portfolio;
@@ -129,6 +129,15 @@ export default function App() {
       </nav>
 
       <main className="main">
+        {!backendUp && (
+          <div className="offline-banner">
+            <span className="dot red pulse" />
+            <span>
+              <b>Cannot reach the system.</b> The dashboard is showing the last data it
+              received. Start the backend, and this will clear on its own.
+            </span>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

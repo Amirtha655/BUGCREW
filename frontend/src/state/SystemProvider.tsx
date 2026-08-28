@@ -24,6 +24,8 @@ interface SystemState {
   adaptations: AdaptationRow[];
   activity: ActivityEvent[];
   connected: boolean;
+  /** False when the REST API cannot be reached, so pages can say so plainly. */
+  backendUp: boolean;
   busy: boolean;
   /** The decision the UI is currently focused on (auto-follows, or user-pinned). */
   focus: TraceEntry | null;
@@ -122,6 +124,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [adaptations, setAdaptations] = useState<AdaptationRow[]>([]);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [connected, setConnected] = useState(false);
+  const [backendUp, setBackendUp] = useState(true);
   const [busy, setBusy] = useState(false);
   const [pinnedAsset, setPinnedAsset] = useState<string | null>(null);
 
@@ -132,14 +135,40 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     if (s.status === "fulfilled") setStatus(s.value);
     if (d.status === "fulfilled") setDecisions(d.value);
     if (a.status === "fulfilled") setAdaptations(a.value);
+    setBackendUp(s.status === "fulfilled");
+  }, []);
+
+  /* The scenario list is static config, but it is fetched over the network --
+     so if the backend is down when the page loads, or is restarted under it,
+     the first attempt fails. Without a retry the picker stays permanently
+     empty with nothing on screen explaining why, which reads as "this build
+     has no scenarios" rather than "the backend is not running". */
+  const scenarioCount = useRef(0);
+  scenarioCount.current = scenarios.length;
+
+  const loadScenarios = useCallback(async () => {
+    try {
+      setScenarios(await api.scenarios());
+    } catch {
+      /* left empty; the status poll below retries */
+    }
   }, []);
 
   useEffect(() => {
-    api.scenarios().then(setScenarios).catch(() => {});
+    loadScenarios();
     refreshAll();
-    const id = setInterval(() => api.status().then(setStatus).catch(() => {}), 3000);
+    const id = setInterval(async () => {
+      try {
+        setStatus(await api.status());
+        setBackendUp(true);
+        // A reachable backend is the moment to recover anything that failed earlier.
+        if (scenarioCount.current === 0) loadScenarios();
+      } catch {
+        setBackendUp(false);
+      }
+    }, 3000);
     return () => clearInterval(id);
-  }, [refreshAll]);
+  }, [refreshAll, loadScenarios]);
 
   // --- websocket ---
   useEffect(() => {
@@ -233,7 +262,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
 
   const value: SystemState = {
     latest, history, status, scenarios, decisions, adaptations, activity,
-    connected, busy, focus, pinnedAsset, setPinnedAsset, refreshAll, control,
+    connected, backendUp, busy, focus, pinnedAsset, setPinnedAsset, refreshAll, control,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
