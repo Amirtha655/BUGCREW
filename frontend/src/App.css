@@ -270,6 +270,70 @@
 .agent-card .agent-name { font-size: 13.5px; font-weight: 650; display: flex; align-items: center; gap: 7px; }
 .agent-card .agent-scope { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; line-height: 1.45; }
 
+/* ---------- agent focus mode ---------- */
+/* The agent cards double as the focus switcher, so they are <button>s and
+   need their button styling reset back to a card. */
+.agent-card.selectable {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 12px 14px;
+  transition: border-color 0.12s, background 0.12s;
+}
+.agent-card.selectable:hover { background: var(--surface-2); border-color: var(--border-strong); }
+.agent-card.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+.agent-card .agent-name .badge { margin-left: auto; }
+
+.focus-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: var(--radius-lg);
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.asset-focus-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 11px 13px;
+  transition: border-color 0.12s, background 0.12s, opacity 0.12s;
+}
+.asset-focus-card:not(:disabled) { cursor: pointer; }
+.asset-focus-card:not(:disabled):hover { border-color: var(--border-strong); background: var(--surface-3); }
+.asset-focus-card:disabled { cursor: default; }
+.asset-focus-card.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface-2)); }
+.asset-focus-card.dimmed { opacity: 0.42; }
+
+.asset-focus-card .asset-reason {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.asset-focus-card .factor-list {
+  margin: 7px 0 0;
+  padding-left: 16px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.asset-focus-card .factor-list li { margin-bottom: 2px; }
+
 /* ---------- scenario picker ---------- */
 .scenario-list { display: flex; flex-direction: column; gap: 6px; }
 .scenario-item {
