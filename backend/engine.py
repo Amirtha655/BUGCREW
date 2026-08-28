@@ -11,6 +11,8 @@ worth persisting for a hackathon prototype (which cycle we're on, the
 adaptive multipliers per regime, and the active demo scenario).
 """
 import random
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from config import settings
@@ -40,6 +42,21 @@ REGIME_SEVERITY = [
     RegimeType.CRISIS, RegimeType.HIGH_VOLATILITY, RegimeType.EVENT_DRIVEN,
     RegimeType.LOW_LIQUIDITY, RegimeType.TRENDING, RegimeType.NORMAL,
 ]
+
+
+@dataclass(frozen=True)
+class _AgentJob:
+    """One asset's analysis, fully resolved and ready to run off-thread.
+
+    Everything the agent needs is captured here by value, so running it does
+    not touch the DB session, the portfolio snapshot, or any shared state.
+    """
+    agent: object
+    event: object
+    regime: RegimeType
+    memory_hint: dict
+    has_position: bool
+    adaptive: AdaptiveState
 
 
 class AutonomousLoop:
@@ -113,24 +130,27 @@ class AutonomousLoop:
             price_lookup = {a: e.price for a, e in events.items()}
             global_snapshot = self.portfolio_manager.snapshot(db, price_lookup)
 
-            proposals = []
+            # Everything the agents need is gathered here, on this thread,
+            # because it reads the DB and the shared snapshot. One leaderboard
+            # query serves every asset instead of one query each.
+            leaderboard = self.strategy_memory.leaderboard(db)
             proposal_meta = {}  # asset -> (event, regime, has_position)
+            jobs = []
             for asset, event in events.items():
                 agent, market_type = self.router.route(event)
                 regime = regimes[asset]
                 has_position = asset in global_snapshot["exposure_by_asset"]
-                adaptive = self.adaptive_states[regime.value]
-                memory_hint = self._strategy_hint_preview(db, regime)
-
-                proposal = agent.analyze(
-                    event, regime, memory_hint,
-                    available_capital=global_snapshot["available_cash"],
-                    has_position=has_position,
-                    adaptive_confidence_mult=adaptive.confidence_multiplier,
-                    adaptive_size_mult=adaptive.size_multiplier,
-                )
-                proposals.append(proposal)
                 proposal_meta[asset] = (event, regime, has_position)
+                jobs.append(_AgentJob(
+                    agent=agent,
+                    event=event,
+                    regime=regime,
+                    memory_hint=self._strategy_hint_preview(leaderboard, regime),
+                    has_position=has_position,
+                    adaptive=self.adaptive_states[regime.value],
+                ))
+
+            proposals = self._analyze_all(jobs, global_snapshot["available_cash"])
 
             proposals = self.coordinator.coordinate(proposals)
 
@@ -308,13 +328,51 @@ class AutonomousLoop:
         finally:
             db.close()
 
-    def _strategy_hint_preview(self, db, regime: RegimeType) -> dict:
+    def _analyze_all(self, jobs: list[_AgentJob], available_capital: float) -> list:
+        """Runs every asset's agent analysis, concurrently.
+
+        Each analyze() spends its time inside one blocking LLM request that
+        only rewrites already-final prose. Run sequentially, six assets made a
+        cycle take ~8.6s -- longer than the configured cycle interval, so LLM
+        latency rather than the Speed control set the real cadence.
+
+        This is safe to parallelise because the path is pure: agents and
+        providers hold no mutable state (two equity assets share one agent
+        instance quite happily), nothing here reads the database or the RNG,
+        and no asset's result depends on another's. Concurrency changes how
+        long a cycle takes, not what it decides.
+
+        Results come back in job order, so the coordinator always sees assets
+        in the same sequence it did before.
+        """
+        if len(jobs) < 2:
+            return [self._analyze_one(job, available_capital) for job in jobs]
+
+        with ThreadPoolExecutor(
+            max_workers=len(jobs), thread_name_prefix="agent-analyze"
+        ) as pool:
+            return list(pool.map(lambda job: self._analyze_one(job, available_capital), jobs))
+
+    @staticmethod
+    def _analyze_one(job: _AgentJob, available_capital: float):
+        return job.agent.analyze(
+            job.event, job.regime, job.memory_hint,
+            available_capital=available_capital,
+            has_position=job.has_position,
+            adaptive_confidence_mult=job.adaptive.confidence_multiplier,
+            adaptive_size_mult=job.adaptive.size_multiplier,
+        )
+
+    def _strategy_hint_preview(self, board: list[dict], regime: RegimeType) -> dict:
         """A generic memory hint before we know the exact strategy_tag (which
         depends on the score we haven't computed yet) -- gives agents a
         regime-level read on recent performance. Cheap approximation, good
         enough for a hackathon: we look up the most-traded strategy tag for
-        this regime so far."""
-        board = self.strategy_memory.leaderboard(db)
+        this regime so far.
+
+        Takes an already-fetched leaderboard rather than a DB session, so it
+        can be called once per asset without re-querying, and so the caller
+        keeps all database access on one thread."""
         for row in board:
             if row["regime"] == regime.value and row["total_trades"] > 0:
                 return {"success_rate": row["success_rate"], "summary": f"{row['strategy_tag']} in {regime.value}: {row['success_rate']*100:.0f}% success rate"}
