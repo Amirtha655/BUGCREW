@@ -141,16 +141,31 @@ Verified in-browser this session, all 10 pages, no console errors, no layout ove
    agents, engine, allocator and executor are still manual-verification only.
 7. **`decisions` are fetched with `limit=200`** — a very long run will truncate
    older rows in the UI. No pagination.
-8. **A cycle takes ~8.6s wall-clock with Groq enabled**, because each of the 6
-   assets gets its own sequential LLM call. That is longer than the default 4s
-   cycle interval, so `cycle_interval_seconds` (the Speed control) does not
-   really set the cadence — LLM latency does. The calls are independent and
-   only rewrite prose, so making them concurrent would cut a cycle to ~1.5s
-   without touching any decision logic. Not done yet.
-9. **`backend/.venv` in the inherited copy was built on another machine** (it
-   pointed at a Python install under another user's home directory) and could
-   not run at all. It has been rebuilt; the dead one is parked at
-   `backend/.venv-broken-amirtha/` and is safe to delete.
+8. ~~**A cycle takes ~8.6s wall-clock with Groq enabled.**~~ Fixed — the six
+   per-asset calls now run concurrently (`AutonomousLoop._analyze_all`).
+   Measured head to head over 4 continuous cycles: **7.05s → 2.78s per cycle,
+   a 2.5x speedup.**
+9. **The Groq free tier caps you at 8,000 tokens per minute, and that is the
+   real limit on how fast this can run with LLM explanations.** Each cycle
+   spends roughly 3,000 tokens (6 assets x ~500), so about 2.5 cycles per
+   minute is all the budget allows. Beyond that Groq returns HTTP 429 and the
+   provider silently falls back to rule-based text. Measured over 4 continuous
+   cycles: sequential kept 23/24 calls on Groq, concurrent kept 19/24 — the
+   faster loop simply reaches the ceiling sooner.
+
+   **This is not caused by the concurrency change**, and it is not a bug: the
+   fallback is deliberate and `ai_provider_used` reports it honestly, so the
+   UI never claims LLM involvement that did not happen. But be aware that
+   **during a long continuous run most explanations will be rule-based, in
+   both the old and the new code** — at the default 4s interval even the old
+   sequential loop wanted ~26,000 tokens/minute against an 8,000 limit.
+
+   For a demo where the LLM text matters, either step cycle by cycle, run at a
+   slower speed, or reduce token spend (see next steps).
+10. **`backend/.venv` in the inherited copy was built on another machine** (it
+    pointed at a Python install under another user's home directory) and could
+    not run at all. It has been rebuilt; the dead one is parked at
+    `backend/.venv-broken-amirtha/` and is safe to delete.
 
 ---
 
@@ -294,9 +309,13 @@ responsive (~10-15ms) throughout a cycle.
 1. **Rotate the Groq API key** (see security note above). Still outstanding —
    it has to be done by hand at console.groq.com, and the key has now been
    copied between machines.
-2. **Make the per-asset LLM calls concurrent** (issue 8 above). Biggest
-   remaining win for how the demo feels: ~8.6s per cycle down to ~1.5s, with no
-   change to any decision logic.
+2. **Reduce LLM token spend so explanations survive a continuous run**
+   (issue 9 above). The cheapest big win: most cycles are six HOLD/WAIT
+   decisions that nobody reads the prose for. Enriching only *actionable*
+   proposals — or only the one decision the UI is focused on — would cut token
+   use several-fold and keep LLM-written text exactly where it is looked at.
+   This changes what the AI layer is asked to do, so it is a deliberate call,
+   not a tidy-up.
 3. **Persist cycle history** so the portfolio chart survives a refresh — add a
    `GET /api/history` returning portfolio value per cycle and seed the chart
    from it, instead of relying on in-memory WebSocket history.
