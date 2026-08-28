@@ -359,13 +359,18 @@
 
 /* ---------- responsive shell ---------- */
 @media (max-width: 900px) {
+  /* The sidebar becomes a horizontal nav strip on its own row, but the brand
+     stays put -- it shares the top row with the status bar rather than being
+     hidden, so the product name is on screen at every width. */
   .shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: var(--topbar-h) auto 1fr;
-    grid-template-areas: "brand" "topbar" "main";
+    grid-template-areas:
+      "brand   topbar"
+      "sidebar sidebar"
+      "main    main";
   }
   .sidebar {
-    grid-area: topbar;
     flex-direction: row;
     overflow-x: auto;
     padding: 6px 8px;
@@ -377,6 +382,14 @@
   .sidebar .group-label, .sidebar-foot { display: none; }
   .nav-item { border-left: none; border-bottom: 2px solid transparent; white-space: nowrap; margin-bottom: 0; }
   .nav-item.active { border-left-color: transparent; border-bottom-color: var(--accent); }
-  .topbar { grid-area: brand; border-right: none; justify-content: flex-start; }
-  .brand { display: none; }
+  .topbar { border-right: none; justify-content: flex-start; }
+
+  /* Compact form: the wordmark survives, the descriptor does not. */
+  .brand { padding: 0 11px; gap: 7px; }
+  .brand .name span { display: none; }
+}
+
+@media (max-width: 460px) {
+  /* Tightest widths: the mark alone carries the brand. */
+  .brand .name { display: none; }
 }
