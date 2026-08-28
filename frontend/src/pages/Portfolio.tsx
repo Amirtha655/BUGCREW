@@ -2,7 +2,7 @@ import { useSystem } from "../state/SystemProvider";
 import { Panel, Empty, PageHeader, DataTable, StatRow, StatTile } from "../components/ui";
 import type { Column } from "../components/ui";
 import { fmtCurrency, fmtPct, fmtPctPlain, pnlTone } from "../utils/format";
-import { T, ASSET_NAME, MARKET_LABEL } from "../utils/vocab";
+import { T, ASSET_NAME, assetTicker, MARKET_LABEL } from "../utils/vocab";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 
 interface Holding {
@@ -66,7 +66,7 @@ export default function Portfolio() {
       render: (r) => (
         <div>
           <div style={{ fontWeight: 600 }}>{ASSET_NAME[r.asset] ?? r.asset}</div>
-          <div className="faint mono" style={{ fontSize: 11 }}>{r.asset}</div>
+          <div className="faint mono" style={{ fontSize: 11 }}>{assetTicker(r.asset)}</div>
         </div>
       ) },
     { key: "market", header: "Market", sortable: true, sortValue: (r) => r.market,

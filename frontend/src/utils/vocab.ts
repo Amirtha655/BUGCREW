@@ -222,6 +222,13 @@ export const ASSET_NAME: Record<string, string> = {
 };
 
 /**
+ * The symbol as a product would print it. The backend uses CRUDE_OIL as an
+ * identifier, and an underscore on screen reads as a database key rather than
+ * a ticker.
+ */
+export const assetTicker = (asset: string): string => asset.replace(/_/g, " ");
+
+/**
  * Backend-generated sentences (rule-engine reasoning, risk reasons, adaptation
  * notes) use internal constants like "HIGH_VOLATILITY" and raw ticker symbols.
  * This rewrites those into the same plain wording used elsewhere in the UI so

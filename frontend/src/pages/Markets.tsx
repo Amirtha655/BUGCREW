@@ -5,7 +5,7 @@ import type { Column } from "../components/ui";
 import type { TraceEntry } from "../types";
 import { fmtPct, fmtNum, fmtCurrency, pnlTone } from "../utils/format";
 import {
-  T, MARKET_LABEL, ASSET_NAME, activityLevel, tradabilityLevel,
+  T, MARKET_LABEL, ASSET_NAME, assetTicker, activityLevel, tradabilityLevel,
   systemStance, regimeInfo, actionInfo, AGENT_LABEL,
 } from "../utils/vocab";
 import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from "recharts";
@@ -38,7 +38,7 @@ export default function Markets() {
       render: (r) => (
         <div>
           <div style={{ fontWeight: 600 }}>{ASSET_NAME[r.asset] ?? r.asset}</div>
-          <div className="faint mono" style={{ fontSize: 11 }}>{r.asset}</div>
+          <div className="faint mono" style={{ fontSize: 11 }}>{assetTicker(r.asset)}</div>
         </div>
       ),
     },
